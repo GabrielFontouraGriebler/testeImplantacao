@@ -1,0 +1,93 @@
+Segue abaixo as consultas realziadas conforme foi solicitado no teste:
+
+a) Consultas Básicas:
+
+->Lista de funcionarios ordenado pelo salário descrescente
+---------------------------------------------------------------------------------------
+-- Consulta onde é listado os vendedores com o salario descrente
+select *
+   from vendedores
+ order by salario desc;
+---------------------------------------------------------------------------------------
+
+
+->Lista de pedidos de vendas ordenado por data de emissão
+---------------------------------------------------------------------------------------
+-- Consulta onde é realizado a listagem dos pedidos do mais recente ao mais antigo
+select *
+   from pedido
+ order by data_emissao desc;
+---------------------------------------------------------------------------------------
+
+
+-> Valor de faturamento por cliente
+---------------------------------------------------------------------------------------
+-- Consulta onde é realizado a listagem de valor total gasto por cliente
+select id_cliente, 
+       SUM(valor_total) 	as total_gasto
+   from pedido
+ group by id_cliente;
+---------------------------------------------------------------------------------------
+
+
+->Valor de faturamento por empresa
+---------------------------------------------------------------------------------------
+-- Consulta onde é realizado a listagem de valor total gasto por empresa
+select id_empresa, 
+       SUM(valor_total) 	as total_gasto
+   from pedido
+ group by id_empresa;
+---------------------------------------------------------------------------------------
+
+
+-> Valor de faturamento por vendedor
+---------------------------------------------------------------------------------------
+-- Consulta onde é realizado a listagem de valor total gasto por vendor, utilizando de um join com a tabela de cliente onde temos os vededores vinculados
+select clientes.id_vendedor, 
+       SUM(valor_total) 	as total_gasto
+   from pedido
+   join clientes
+   on pedido.id_cliente = clientes.id_cliente
+ group by clientes.id_vendedor;
+---------------------------------------------------------------------------------------
+
+
+b)Consultas de Junção:
+
+-> Segue a consulta realizada para a listagem dos ultimos itens comprados por cliente, no qual o preco_base respeita a regra de valor minimo e valor maximo.
+---------------------------------------------------------------------------------------
+--Nesta consulta buscamos os itens dos ultimos pedidos realizados por cliente, de forma que seja possível validar o preço_base do produto
+--o qual deve estar dentro da margem de peço minimo e maximo
+WITH PedidosNumerados AS (
+    SELECT
+        produtos.id_produto                         as produto_id,
+        produtos.descricao                          as descricao_produto,
+        pedido.id_cliente                           as cliente_id,
+        clientes.razao_social                       as cliente_razao_socail,
+        empresa.id_empresa                          as empresa_id,
+        empresa.razao_social                        as empresa_razao_social,
+        vendedores.id_vendedor                      as vendedor_id,
+        vendedores.nome                             as nome_vendedor,
+        config_preco_produto.preco_maximo           as preco_maximo,
+        config_preco_produto.preco_minimo           as preco_minimo,
+        itens_pedido.preco_praticado                as preco_base,
+        pedido.id_pedido                            as pedido_id,
+        ROW_NUMBER() OVER (PARTITION BY clientes.id_cliente, produtos.id_produto ORDER BY pedido.data_emissao DESC) AS row_num
+    FROM
+        pedido
+            JOIN itens_pedido ON itens_pedido.id_pedido = pedido.id_pedido
+            JOIN produtos ON produtos.id_produto = itens_pedido.id_produto
+            JOIN clientes ON clientes.id_cliente = pedido.id_cliente
+            JOIN empresa ON empresa.id_empresa = pedido.id_empresa
+            JOIN vendedores ON vendedores.id_vendedor = clientes.id_vendedor
+            JOIN config_preco_produto ON config_preco_produto.id_produto = produtos.id_produto
+    WHERE
+        itens_pedido.preco_praticado BETWEEN config_preco_produto.preco_minimo AND config_preco_produto.preco_maximo
+)
+SELECT
+    *
+FROM
+    PedidosNumerados
+WHERE
+    row_num = 1;
+---------------------------------------------------------------------------------------
